@@ -1,4 +1,4 @@
-module github.com/bilal/backend_path
+module github.com/BilalGunden-Insider/go-backend
 
 go 1.25.1
 

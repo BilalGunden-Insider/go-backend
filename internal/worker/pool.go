@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/bilal/backend_path/internal/models"
+	"github.com/BilalGunden-Insider/go-backend/internal/models"
 )
 
 type Task struct {

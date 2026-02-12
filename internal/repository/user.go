@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"github.com/bilal/backend_path/internal/models"
+	"github.com/BilalGunden-Insider/go-backend/internal/models"
 	"github.com/google/uuid"
 )
 

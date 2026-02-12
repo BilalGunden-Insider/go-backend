@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/bilal/backend_path/internal/models"
-	"github.com/bilal/backend_path/internal/repository"
+	"github.com/BilalGunden-Insider/go-backend/internal/models"
+	"github.com/BilalGunden-Insider/go-backend/internal/repository"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/shopspring/decimal"

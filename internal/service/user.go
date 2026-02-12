@@ -8,8 +8,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/bilal/backend_path/internal/models"
-	"github.com/bilal/backend_path/internal/repository"
+	"github.com/BilalGunden-Insider/go-backend/internal/models"
+	"github.com/BilalGunden-Insider/go-backend/internal/repository"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"golang.org/x/crypto/bcrypt"

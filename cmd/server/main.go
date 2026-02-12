@@ -7,12 +7,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/bilal/backend_path/internal/config"
-	"github.com/bilal/backend_path/internal/database"
-	"github.com/bilal/backend_path/internal/logger"
-	"github.com/bilal/backend_path/internal/repository/postgres"
-	"github.com/bilal/backend_path/internal/service"
-	"github.com/bilal/backend_path/internal/worker"
+	"github.com/BilalGunden-Insider/go-backend/internal/config"
+	"github.com/BilalGunden-Insider/go-backend/internal/database"
+	"github.com/BilalGunden-Insider/go-backend/internal/logger"
+	"github.com/BilalGunden-Insider/go-backend/internal/repository/postgres"
+	"github.com/BilalGunden-Insider/go-backend/internal/service"
+	"github.com/BilalGunden-Insider/go-backend/internal/worker"
 )
 
 func main() {

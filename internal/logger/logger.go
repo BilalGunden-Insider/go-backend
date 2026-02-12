@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bilal/backend_path/internal/config"
+	"github.com/BilalGunden-Insider/go-backend/internal/config"
 )
 
 func Setup(cfg *config.Config) *slog.Logger {

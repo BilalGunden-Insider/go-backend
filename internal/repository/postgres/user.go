@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/bilal/backend_path/internal/models"
+	"github.com/BilalGunden-Insider/go-backend/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

@@ -7,9 +7,9 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/bilal/backend_path/internal/models"
-	"github.com/bilal/backend_path/internal/repository"
-	"github.com/bilal/backend_path/internal/worker"
+	"github.com/BilalGunden-Insider/go-backend/internal/models"
+	"github.com/BilalGunden-Insider/go-backend/internal/repository"
+	"github.com/BilalGunden-Insider/go-backend/internal/worker"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
