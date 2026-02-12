@@ -1,0 +1,5 @@
+CREATE TABLE balances (
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    amount NUMERIC(18,2) NOT NULL DEFAULT 0.00,
+    last_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
