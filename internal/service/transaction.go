@@ -270,14 +270,16 @@ func (s *TransactionService) Rollback(ctx context.Context, txID uuid.UUID) error
 	}
 
 	details, _ := json.Marshal(map[string]string{"original_tx": txID.String()})
-	_ = s.audit.Create(ctx, &models.AuditLog{
+	if err := s.audit.Create(ctx, &models.AuditLog{
 		ID:         uuid.New(),
 		EntityType: models.EntityTransaction,
 		EntityID:   txID,
 		Action:     models.ActionRollback,
 		Details:    details,
 		CreatedAt:  time.Now(),
-	})
+	}); err != nil {
+		s.log.Warn("failed to create audit log", slog.String("error", err.Error()))
+	}
 
 	s.log.Info("transaction rolled back", slog.String("tx_id", txID.String()))
 	return nil
@@ -307,12 +309,14 @@ func (s *TransactionService) logAudit(ctx context.Context, tx *models.Transactio
 		"from":   tx.FromUserID.String(),
 		"to":     tx.ToUserID.String(),
 	})
-	_ = s.audit.Create(ctx, &models.AuditLog{
+	if err := s.audit.Create(ctx, &models.AuditLog{
 		ID:         uuid.New(),
 		EntityType: models.EntityTransaction,
 		EntityID:   tx.ID,
 		Action:     models.ActionCreate,
 		Details:    details,
 		CreatedAt:  time.Now(),
-	})
+	}); err != nil {
+		s.log.Warn("failed to create audit log", slog.String("error", err.Error()))
+	}
 }

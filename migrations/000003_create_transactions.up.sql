@@ -1,7 +1,7 @@
 CREATE TABLE transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    from_user_id UUID NOT NULL REFERENCES users(id),
-    to_user_id UUID NOT NULL REFERENCES users(id),
+    from_user_id UUID REFERENCES users(id),
+    to_user_id UUID REFERENCES users(id),
     amount NUMERIC(18,2) NOT NULL CHECK (amount > 0),
     type VARCHAR(20) NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'pending',

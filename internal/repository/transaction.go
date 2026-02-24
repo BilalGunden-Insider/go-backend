@@ -2,10 +2,12 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/BilalGunden-Insider/go-backend/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/shopspring/decimal"
 )
 
 type TransactionRepository interface {
@@ -15,4 +17,5 @@ type TransactionRepository interface {
 	UpdateStatus(ctx context.Context, id uuid.UUID, status string) error
 	UpdateStatusTx(ctx context.Context, dbTx pgx.Tx, id uuid.UUID, status string) error
 	ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*models.Transaction, error)
+	CalculateBalanceAt(ctx context.Context, userID uuid.UUID, at time.Time) (decimal.Decimal, error)
 }

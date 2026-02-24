@@ -7,6 +7,7 @@ type Config struct {
 	Port        string
 	LogLevel    string
 	Environment string
+	JWTSecret   string
 }
 
 func Load() *Config {
@@ -15,6 +16,7 @@ func Load() *Config {
 		Port:        getEnv("PORT", "8080"),
 		LogLevel:    getEnv("LOG_LEVEL", "info"),
 		Environment: getEnv("ENVIRONMENT", "development"),
+		JWTSecret:   getEnv("JWT_SECRET", "change-me-in-production"),
 	}
 }
 

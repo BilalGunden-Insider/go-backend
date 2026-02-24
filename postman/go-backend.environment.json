@@ -1,0 +1,11 @@
+{
+  "name": "go-backend local",
+  "values": [
+    { "key": "baseUrl",       "value": "http://localhost:8080", "enabled": true },
+    { "key": "token",         "value": "",                      "enabled": true },
+    { "key": "adminToken",    "value": "",                      "enabled": true },
+    { "key": "userId",        "value": "",                      "enabled": true },
+    { "key": "adminUserId",   "value": "",                      "enabled": true },
+    { "key": "transactionId", "value": "",                      "enabled": true }
+  ]
+}

@@ -44,6 +44,25 @@ func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*m
 	return r.scanUser(ctx, query, username)
 }
 
+func (r *UserRepository) List(ctx context.Context, limit, offset int) ([]*models.User, error) {
+	query := `SELECT id, username, email, password_hash, role, created_at, updated_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+	rows, err := r.pool.Query(ctx, query, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("query users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []*models.User
+	for rows.Next() {
+		var u models.User
+		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.PasswordHash, &u.Role, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan user row: %w", err)
+		}
+		users = append(users, &u)
+	}
+	return users, rows.Err()
+}
+
 func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 	query := `UPDATE users SET username = $1, email = $2, role = $3, updated_at = $4 WHERE id = $5`
 	_, err := r.pool.Exec(ctx, query, user.Username, user.Email, user.Role, user.UpdatedAt, user.ID)

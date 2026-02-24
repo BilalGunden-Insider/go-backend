@@ -66,14 +66,16 @@ func (s *UserService) Register(ctx context.Context, username, email, password, r
 	}
 
 	details, _ := json.Marshal(map[string]string{"username": username, "email": email, "role": role})
-	_ = s.audit.Create(ctx, &models.AuditLog{
+	if err := s.audit.Create(ctx, &models.AuditLog{
 		ID:         uuid.New(),
 		EntityType: models.EntityUser,
 		EntityID:   user.ID,
 		Action:     models.ActionCreate,
 		Details:    details,
 		CreatedAt:  now,
-	})
+	}); err != nil {
+		s.log.Warn("failed to create audit log", slog.String("error", err.Error()))
+	}
 
 	s.log.Info("user registered", slog.String("user_id", user.ID.String()), slog.String("username", username))
 	return user, nil
@@ -99,4 +101,29 @@ func (s *UserService) Authorize(user *models.User, requiredRole string) error {
 
 func (s *UserService) GetByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
 	return s.users.GetByID(ctx, id)
+}
+
+func (s *UserService) List(ctx context.Context, limit, offset int) ([]*models.User, error) {
+	return s.users.List(ctx, limit, offset)
+}
+
+func (s *UserService) Update(ctx context.Context, id uuid.UUID, username, email string) (*models.User, error) {
+	user, err := s.users.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get user: %w", err)
+	}
+	user.Username = username
+	user.Email = email
+	user.UpdatedAt = time.Now()
+	if err := user.Validate(); err != nil {
+		return nil, fmt.Errorf("validation: %w", err)
+	}
+	if err := s.users.Update(ctx, user); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (s *UserService) Delete(ctx context.Context, id uuid.UUID) error {
+	return s.users.Delete(ctx, id)
 }

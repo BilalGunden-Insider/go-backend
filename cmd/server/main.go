@@ -2,11 +2,15 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/BilalGunden-Insider/go-backend/internal/api"
 	"github.com/BilalGunden-Insider/go-backend/internal/config"
 	"github.com/BilalGunden-Insider/go-backend/internal/database"
 	"github.com/BilalGunden-Insider/go-backend/internal/logger"
@@ -58,16 +62,28 @@ func main() {
 	wp.Start(ctx)
 	txnSvc.SetWorkerPool(wp)
 
-	_ = userSvc
-	_ = txnSvc
+	srv := api.NewServer(cfg, userSvc, txnSvc, balanceSvc, txnRepo, log)
 
-	log.Info("all services initialized")
+	go func() {
+		log.Info("http server listening", slog.String("port", cfg.Port))
+		if err := srv.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Error("http server error", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	sig := <-quit
 	log.Info("shutting down", slog.String("signal", sig.String()))
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Error("http server shutdown error", slog.String("error", err.Error()))
+	}
 
 	wp.Stop()
 	cancel()
