@@ -8,9 +8,11 @@ import (
 	"github.com/BilalGunden-Insider/go-backend/internal/api/handler"
 	"github.com/BilalGunden-Insider/go-backend/internal/api/middleware"
 	"github.com/BilalGunden-Insider/go-backend/internal/config"
+	_ "github.com/BilalGunden-Insider/go-backend/internal/metrics"
 	"github.com/BilalGunden-Insider/go-backend/internal/models"
 	"github.com/BilalGunden-Insider/go-backend/internal/repository"
 	"github.com/BilalGunden-Insider/go-backend/internal/service"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Server struct {
@@ -59,6 +61,8 @@ func NewServer(
 			middleware.RequireRole(models.RoleAdmin),
 		)
 	}
+
+	mux.Handle("GET /metrics", promhttp.Handler())
 
 	mux.Handle("POST /api/v1/auth/register", base(authH.Register))
 	mux.Handle("POST /api/v1/auth/login", base(authH.Login))
