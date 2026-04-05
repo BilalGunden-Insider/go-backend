@@ -1,7 +1,3 @@
-# Go Backend - Financial Transaction API
-
-Go ile yazılmış, PostgreSQL destekli finansal işlem backend'i.
-
 ## Teknolojiler
 
 - **Go 1.25** - Backend
