@@ -7,6 +7,7 @@ services:
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/gobackend?sslmode=disable
       - JWT_SECRET=supersecretkey
       - PORT=8080
+      - REDIS_URL=redis://redis:6379
     depends_on:
       postgres:
         condition: service_healthy

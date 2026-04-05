@@ -25,6 +25,7 @@ func NewServer(
 	txnSvc *service.TransactionService,
 	balanceSvc *service.BalanceService,
 	txnRepo repository.TransactionRepository,
+	schedRepo repository.ScheduledTransactionRepository,
 	log *slog.Logger,
 ) *Server {
 	mux := http.NewServeMux()
@@ -33,6 +34,8 @@ func NewServer(
 	userH := handler.NewUserHandler(userSvc)
 	txnH := handler.NewTransactionHandler(txnSvc, txnRepo)
 	balH := handler.NewBalanceHandler(balanceSvc, txnRepo)
+	schedH := handler.NewScheduledTransactionHandler(schedRepo)
+	batchH := handler.NewBatchHandler(txnSvc)
 
 	base := func(h http.HandlerFunc) http.Handler {
 		return middleware.Chain(h,
@@ -81,6 +84,14 @@ func NewServer(
 
 	mux.Handle("GET /api/v1/balances/{user_id}", authed(balH.GetBalance))
 	mux.Handle("GET /api/v1/balances/{user_id}/at", authed(balH.GetBalanceAt))
+
+	mux.Handle("POST /api/v1/scheduled-transactions", authed(schedH.Schedule))
+	mux.Handle("GET /api/v1/scheduled-transactions", authed(schedH.List))
+	mux.Handle("GET /api/v1/scheduled-transactions/{id}", authed(schedH.Get))
+	mux.Handle("POST /api/v1/scheduled-transactions/{id}/cancel", authed(schedH.Cancel))
+
+	mux.Handle("POST /api/v1/transactions/batch", admin(batchH.ProcessBatch))
+	mux.Handle("GET /api/v1/workers/stats", admin(batchH.WorkerStats))
 
 	return &Server{
 		httpServer: &http.Server{

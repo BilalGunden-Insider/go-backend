@@ -118,6 +118,24 @@ func (r *TransactionRepository) ListByUser(ctx context.Context, userID uuid.UUID
 	return txns, rows.Err()
 }
 
+func (r *TransactionRepository) GetDailyTotal(ctx context.Context, userID uuid.UUID, date time.Time) (decimal.Decimal, error) {
+	startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	endOfDay := startOfDay.AddDate(0, 0, 1)
+
+	query := `
+		SELECT COALESCE(SUM(amount), 0)
+		FROM transactions
+		WHERE from_user_id = $1 AND status = 'completed'
+		  AND created_at >= $2 AND created_at < $3`
+
+	var total decimal.Decimal
+	err := r.pool.QueryRow(ctx, query, userID, startOfDay, endOfDay).Scan(&total)
+	if err != nil {
+		return decimal.Zero, fmt.Errorf("get daily total: %w", err)
+	}
+	return total, nil
+}
+
 func (r *TransactionRepository) CalculateBalanceAt(ctx context.Context, userID uuid.UUID, at time.Time) (decimal.Decimal, error) {
 	query := `
 		SELECT COALESCE(SUM(CASE WHEN to_user_id = $1 THEN amount ELSE -amount END), 0)

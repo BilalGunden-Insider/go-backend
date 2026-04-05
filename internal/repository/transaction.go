@@ -18,4 +18,5 @@ type TransactionRepository interface {
 	UpdateStatusTx(ctx context.Context, dbTx pgx.Tx, id uuid.UUID, status string) error
 	ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*models.Transaction, error)
 	CalculateBalanceAt(ctx context.Context, userID uuid.UUID, at time.Time) (decimal.Decimal, error)
+	GetDailyTotal(ctx context.Context, userID uuid.UUID, date time.Time) (decimal.Decimal, error)
 }

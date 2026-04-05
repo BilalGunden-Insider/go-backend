@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/BilalGunden-Insider/go-backend/internal/api"
+	"github.com/BilalGunden-Insider/go-backend/internal/cache"
+	"github.com/BilalGunden-Insider/go-backend/internal/circuitbreaker"
 	"github.com/BilalGunden-Insider/go-backend/internal/config"
 	"github.com/BilalGunden-Insider/go-backend/internal/database"
 	"github.com/BilalGunden-Insider/go-backend/internal/logger"
@@ -43,26 +45,42 @@ func main() {
 	defer pool.Close()
 	log.Info("connected to database")
 
+	redisCache, err := cache.NewRedisCache(cfg.RedisURL, 10*time.Minute)
+	if err != nil {
+		log.Error("failed to connect to redis", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	defer redisCache.Close()
+	log.Info("connected to redis")
+
+	cb := circuitbreaker.New(5, 30*time.Second)
+
 	userRepo := postgres.NewUserRepository(pool)
 	txnRepo := postgres.NewTransactionRepository(pool)
 	balanceRepo := postgres.NewBalanceRepository(pool)
 	auditRepo := postgres.NewAuditLogRepository(pool)
+	limitRepo := postgres.NewTransactionLimitRepository(pool)
+	schedRepo := postgres.NewScheduledTransactionRepository(pool)
 
-	balanceSvc := service.NewBalanceService(balanceRepo, auditRepo, log)
+	balanceSvc := service.NewBalanceService(balanceRepo, auditRepo, redisCache, cb, log)
 	userSvc := service.NewUserService(userRepo, balanceRepo, auditRepo, log)
+	limiter := service.NewLimiter(limitRepo, txnRepo, log)
 
 	if err := balanceSvc.WarmCache(ctx); err != nil {
 		log.Error("failed to warm balance cache", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 
-	txnSvc := service.NewTransactionService(txnRepo, auditRepo, balanceSvc, pool, log)
+	txnSvc := service.NewTransactionService(txnRepo, auditRepo, balanceSvc, limiter, pool, log)
 
 	wp := worker.NewPool(4, 100, txnSvc.ProcessTransaction, log)
 	wp.Start(ctx)
 	txnSvc.SetWorkerPool(wp)
 
-	srv := api.NewServer(cfg, userSvc, txnSvc, balanceSvc, txnRepo, log)
+	scheduler := service.NewScheduler(schedRepo, txnSvc, log)
+	scheduler.Start(ctx)
+
+	srv := api.NewServer(cfg, userSvc, txnSvc, balanceSvc, txnRepo, schedRepo, log)
 
 	go func() {
 		log.Info("http server listening", slog.String("port", cfg.Port))
@@ -88,5 +106,6 @@ func main() {
 	wp.Stop()
 	cancel()
 	pool.Close()
+	redisCache.Close()
 	log.Info("shutdown complete")
 }

@@ -8,6 +8,7 @@ type Config struct {
 	LogLevel    string
 	Environment string
 	JWTSecret   string
+	RedisURL    string
 }
 
 func Load() *Config {
@@ -17,6 +18,7 @@ func Load() *Config {
 		LogLevel:    getEnv("LOG_LEVEL", "info"),
 		Environment: getEnv("ENVIRONMENT", "development"),
 		JWTSecret:   getEnv("JWT_SECRET", "change-me-in-production"),
+		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
 	}
 }
 

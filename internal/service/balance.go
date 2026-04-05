@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
-	"sync"
 
+	"github.com/BilalGunden-Insider/go-backend/internal/cache"
+	"github.com/BilalGunden-Insider/go-backend/internal/circuitbreaker"
 	"github.com/BilalGunden-Insider/go-backend/internal/models"
 	"github.com/BilalGunden-Insider/go-backend/internal/repository"
 	"github.com/google/uuid"
@@ -16,57 +18,76 @@ import (
 type BalanceService struct {
 	balances repository.BalanceRepository
 	audit    repository.AuditLogRepository
+	cache    cache.Cache
+	cb       *circuitbreaker.CircuitBreaker
 	log      *slog.Logger
-
-	mu    sync.RWMutex
-	cache map[uuid.UUID]decimal.Decimal
 }
 
 func NewBalanceService(
 	balances repository.BalanceRepository,
 	audit repository.AuditLogRepository,
+	cache cache.Cache,
+	cb *circuitbreaker.CircuitBreaker,
 	log *slog.Logger,
 ) *BalanceService {
 	return &BalanceService{
 		balances: balances,
 		audit:    audit,
+		cache:    cache,
+		cb:       cb,
 		log:      log,
-		cache:    make(map[uuid.UUID]decimal.Decimal),
 	}
 }
 
 func (s *BalanceService) WarmCache(ctx context.Context) error {
-	all, err := s.balances.GetAll(ctx)
+	var all []*models.Balance
+	err := s.cb.Execute(func() error {
+		var e error
+		all, e = s.balances.GetAll(ctx)
+		return e
+	})
 	if err != nil {
+		if errors.Is(err, circuitbreaker.ErrCircuitOpen) {
+			s.log.Warn("circuit open during cache warm-up, starting with empty cache")
+			return nil
+		}
 		return fmt.Errorf("warm cache: %w", err)
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	batch := make(map[uuid.UUID]decimal.Decimal, len(all))
 	for _, b := range all {
-		s.cache[b.UserID] = b.Amount
+		batch[b.UserID] = b.Amount
 	}
+
+	if err := s.cache.SetBalanceBatch(ctx, batch); err != nil {
+		return fmt.Errorf("warm cache batch set: %w", err)
+	}
+
 	s.log.Info("balance cache warmed", slog.Int("entries", len(all)))
 	return nil
 }
 
 func (s *BalanceService) GetBalance(ctx context.Context, userID uuid.UUID) (decimal.Decimal, error) {
-	s.mu.RLock()
-	if amount, ok := s.cache[userID]; ok {
-		s.mu.RUnlock()
+	if amount, ok, err := s.cache.GetBalance(ctx, userID); err == nil && ok {
 		return amount, nil
 	}
-	s.mu.RUnlock()
 
-	b, err := s.balances.GetByUserID(ctx, userID)
+	var bal *models.Balance
+	err := s.cb.Execute(func() error {
+		var e error
+		bal, e = s.balances.GetByUserID(ctx, userID)
+		return e
+	})
 	if err != nil {
+		if errors.Is(err, circuitbreaker.ErrCircuitOpen) {
+			s.log.Warn("circuit open, cannot fetch balance", slog.String("user_id", userID.String()))
+			return decimal.Zero, fmt.Errorf("service temporarily unavailable")
+		}
 		return decimal.Zero, err
 	}
 
-	s.mu.Lock()
-	s.cache[userID] = b.Amount
-	s.mu.Unlock()
-	return b.Amount, nil
+	_ = s.cache.SetBalance(ctx, userID, bal.Amount)
+	return bal.Amount, nil
 }
 
 func (s *BalanceService) UpdateBalanceInTx(ctx context.Context, dbTx pgx.Tx, userID uuid.UUID, newAmount decimal.Decimal) error {
@@ -74,9 +95,7 @@ func (s *BalanceService) UpdateBalanceInTx(ctx context.Context, dbTx pgx.Tx, use
 		return err
 	}
 
-	s.mu.Lock()
-	s.cache[userID] = newAmount
-	s.mu.Unlock()
+	_ = s.cache.SetBalance(ctx, userID, newAmount)
 	return nil
 }
 
@@ -84,8 +103,6 @@ func (s *BalanceService) GetBalanceForUpdate(ctx context.Context, dbTx pgx.Tx, u
 	return s.balances.GetByUserIDForUpdate(ctx, dbTx, userID)
 }
 
-func (s *BalanceService) SetCache(userID uuid.UUID, amount decimal.Decimal) {
-	s.mu.Lock()
-	s.cache[userID] = amount
-	s.mu.Unlock()
+func (s *BalanceService) SetCache(ctx context.Context, userID uuid.UUID, amount decimal.Decimal) {
+	_ = s.cache.SetBalance(ctx, userID, amount)
 }

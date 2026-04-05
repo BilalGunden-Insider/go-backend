@@ -19,6 +19,7 @@ type TransactionService struct {
 	txns     repository.TransactionRepository
 	audit    repository.AuditLogRepository
 	balances *BalanceService
+	limiter  *Limiter
 	pool     *pgxpool.Pool
 	wp       *worker.Pool
 	log      *slog.Logger
@@ -28,6 +29,7 @@ func NewTransactionService(
 	txns repository.TransactionRepository,
 	audit repository.AuditLogRepository,
 	balances *BalanceService,
+	limiter *Limiter,
 	pool *pgxpool.Pool,
 	log *slog.Logger,
 ) *TransactionService {
@@ -35,6 +37,7 @@ func NewTransactionService(
 		txns:     txns,
 		audit:    audit,
 		balances: balances,
+		limiter:  limiter,
 		pool:     pool,
 		log:      log,
 	}
@@ -45,6 +48,10 @@ func (s *TransactionService) SetWorkerPool(wp *worker.Pool) {
 }
 
 func (s *TransactionService) Credit(ctx context.Context, userID uuid.UUID, amount decimal.Decimal) (*models.Transaction, error) {
+	if err := s.limiter.CheckLimits(ctx, userID, amount); err != nil {
+		return nil, err
+	}
+
 	tx := &models.Transaction{
 		ID:         uuid.New(),
 		FromUserID: uuid.Nil,
@@ -93,6 +100,10 @@ func (s *TransactionService) Credit(ctx context.Context, userID uuid.UUID, amoun
 }
 
 func (s *TransactionService) Debit(ctx context.Context, userID uuid.UUID, amount decimal.Decimal) (*models.Transaction, error) {
+	if err := s.limiter.CheckLimits(ctx, userID, amount); err != nil {
+		return nil, err
+	}
+
 	tx := &models.Transaction{
 		ID:         uuid.New(),
 		FromUserID: userID,
@@ -144,6 +155,10 @@ func (s *TransactionService) Debit(ctx context.Context, userID uuid.UUID, amount
 }
 
 func (s *TransactionService) Transfer(ctx context.Context, fromUserID, toUserID uuid.UUID, amount decimal.Decimal) (*models.Transaction, error) {
+	if err := s.limiter.CheckLimits(ctx, fromUserID, amount); err != nil {
+		return nil, err
+	}
+
 	tx := &models.Transaction{
 		ID:         uuid.New(),
 		FromUserID: fromUserID,
@@ -207,6 +222,10 @@ func (s *TransactionService) Transfer(ctx context.Context, fromUserID, toUserID 
 
 func (s *TransactionService) SubmitAsync(tx *models.Transaction) bool {
 	return s.wp.Submit(worker.Task{Transaction: tx})
+}
+
+func (s *TransactionService) GetWorkerStats() worker.StatsSnapshot {
+	return s.wp.GetStats().Snapshot()
 }
 
 func (s *TransactionService) Rollback(ctx context.Context, txID uuid.UUID) error {
